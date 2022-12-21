@@ -18,7 +18,9 @@ type config struct {
 	port int
 	env  string
 	db   struct {
-		dsn string
+		dsn          string
+		maxOpenConns int
+		maxIdleTime  string
 	}
 }
 
@@ -34,6 +36,9 @@ func main() {
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
 	flag.Parse()
 
@@ -67,7 +72,20 @@ func main() {
 }
 
 func openDB(cfg config) (*pgxpool.Pool, error) {
-	db, err := pgxpool.New(context.Background(), cfg.db.dsn)
+	config, err := pgxpool.ParseConfig(os.Getenv("GREENLIGHT_DB_DSN"))
+	if err != nil {
+		return nil, err
+	}
+
+	duration, err := time.ParseDuration(cfg.db.maxIdleTime)
+	if err != nil {
+		return nil, err
+	}
+
+	config.MaxConns = int32(cfg.db.maxOpenConns)
+	config.MaxConnLifetime = duration
+
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, err
 	}
