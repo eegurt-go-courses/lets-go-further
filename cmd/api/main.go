@@ -83,7 +83,7 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	}
 
 	config.MaxConns = int32(cfg.db.maxOpenConns)
-	config.MaxConnLifetime = duration
+	config.MaxConnIdleTime = duration
 
 	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
