@@ -39,7 +39,7 @@ type MovieModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m MovieModel) Insert(ctx context.Context, movie *Movie) error {
+func (m MovieModel) Insert(movie *Movie) error {
 	query := `
 		INSERT INTO movies (title, year, runtime, genres)
 		VALUES ($1, $2, $3, $4)
@@ -47,10 +47,13 @@ func (m MovieModel) Insert(ctx context.Context, movie *Movie) error {
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, movie.Genres}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	return m.DB.QueryRow(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
-func (m MovieModel) Get(ctx context.Context, id int64) (*Movie, error) {
+func (m MovieModel) Get(id int64) (*Movie, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
@@ -61,6 +64,9 @@ func (m MovieModel) Get(ctx context.Context, id int64) (*Movie, error) {
 		WHERE id = $1`
 
 	var movie Movie
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
 	err := m.DB.QueryRow(ctx, query, id).Scan(
 		&movie.ID,
@@ -84,7 +90,7 @@ func (m MovieModel) Get(ctx context.Context, id int64) (*Movie, error) {
 	return &movie, nil
 }
 
-func (m MovieModel) Update(ctx context.Context, movie *Movie) error {
+func (m MovieModel) Update(movie *Movie) error {
 	query := `
 		UPDATE movies
 		SET title = $1, year = $2, runtime = $3, genres = $4, version = gen_random_uuid()
@@ -100,6 +106,9 @@ func (m MovieModel) Update(ctx context.Context, movie *Movie) error {
 		movie.Version,
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	err := m.DB.QueryRow(ctx, query, args...).Scan(&movie.Version)
 	if err != nil {
 		switch {
@@ -112,7 +121,7 @@ func (m MovieModel) Update(ctx context.Context, movie *Movie) error {
 	return nil
 }
 
-func (m MovieModel) Delete(ctx context.Context, id int64) error {
+func (m MovieModel) Delete(id int64) error {
 	if id < 1 {
 		return ErrRecordNotFound
 	}
@@ -120,6 +129,9 @@ func (m MovieModel) Delete(ctx context.Context, id int64) error {
 	query := `
 		DELETE FROM movies
 		WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
 	result, err := m.DB.Exec(ctx, query, id)
 	if err != nil {
