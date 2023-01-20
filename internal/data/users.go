@@ -3,10 +3,10 @@ package data
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 	"greenlight.eegurt.net/internal/validator"
@@ -100,14 +100,14 @@ func (m UserModel) Insert(user *User) error {
 
 	err := m.DB.QueryRow(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.Version)
 	if err != nil {
-		fmt.Print(err.Error())
+		var pgErr *pgconn.PgError
 
-		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-			return ErrDuplicateEmail
-		default:
-			return err
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return ErrDuplicateEmail
+			}
 		}
+		return nil
 	}
 
 	return nil
