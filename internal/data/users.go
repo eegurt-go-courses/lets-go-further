@@ -169,12 +169,14 @@ func (m UserModel) Update(user *User) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				return ErrDuplicateEmail
-			}
+		if errors.As(err, &pgErr); pgErr.Code == "23505" { // Unique Constraint Violation Code
+			return ErrDuplicateEmail
 		}
-		return nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrEditConflict
+		}
+
+		return err
 	}
 
 	return nil
